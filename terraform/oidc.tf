@@ -17,7 +17,7 @@ data "aws_iam_policy_document" "github_actions_assume_role" {
 
     condition {
       test     = "StringLike"
-      variable = "token.actions.githubusercontent.com:repo"
+      variable = "token.actions.githubusercontent.com:sub"
       # Securely locked to your renamed project repository
       values = ["repo:Oluwatobie/aws-ps-ingress-platform:*"]
     }

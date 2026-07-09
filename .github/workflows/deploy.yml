@@ -1,0 +1,53 @@
+name: Public Sector Ingress Platform Deployment
+
+on:
+  push:
+    branches:
+      - main # Triggers the pipeline automatically when code hits the main branch
+
+permissions:
+  id-token: write # MANDATORY for requesting secure keyless AWS OIDC tokens
+  contents: read  # Allows GitHub to check out your repository code
+
+jobs:
+  deploy:
+    name: Build, Secure, and Deploy to Fargate
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout the repository code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 2. Keyless Authentication via OIDC (No long-lived AWS keys stored in GitHub Secrets)
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::753229898853:role/github-actions-delivery-role 
+          aws-region: eu-west-2
+          audience: sts.amazonaws.com
+
+      # 3. Authenticate Docker securely against your private ECR registry
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # 4. Build, Tag, and Push the container image to ECR
+      - name: Build, Tag, and Push Image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ps-ingress-worker-repo
+          IMAGE_TAG: latest
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      # 5. Force a rolling update on the decoupled ECS Fargate Service
+      - name: Deploy New Task to Amazon ECS Fargate
+        run: |
+          aws ecs update-service \
+            --cluster ps-ingress-compute-cluster \
+            --service ps-ingress-worker-service \
+            --force-new-deployment \
+            --region eu-west-2
