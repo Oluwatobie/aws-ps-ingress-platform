@@ -1,3 +1,9 @@
+variable "container_image_tag" {
+  type    = string
+  default = "latest"
+}
+
+
 # 1. Core ECS Compute Cluster
 resource "aws_ecs_cluster" "main" {
   name = "ps-ingress-compute-cluster"
@@ -101,7 +107,7 @@ resource "aws_ecs_task_definition" "app" {
 
   container_definitions = jsonencode([{
     name      = "worker"
-    image     = "${aws_ecr_repository.app_repo.repository_url}:latest"
+    image = "${aws_ecr_repository.app_repo.repository_url}:${var.container_image_tag}"
     essential = true
     
     environment = [
