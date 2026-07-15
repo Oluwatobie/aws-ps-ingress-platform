@@ -43,11 +43,14 @@ jobs:
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-      # 5. Force a rolling update on the decoupled ECS Fargate Service
-      - name: Deploy New Task to Amazon ECS Fargate
+      # 5. Install the official HashiCorp Terraform CLI onto the runner
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.6.0"
+
+      # 6. Initialize and deploy infrastructure using the unique Git SHA tag
+      - name: Terraform Init and Apply (Automated Deployment)
         run: |
-          aws ecs update-service \
-            --cluster ps-ingress-compute-cluster \
-            --service ps-ingress-worker-service \
-            --force-new-deployment \
-            --region eu-west-2
+          terraform -chdir=terraform init
+          terraform -chdir=terraform apply -auto-approve -var="container_image_tag=${{ github.sha }}
