@@ -53,4 +53,4 @@ jobs:
       - name: Terraform Init and Apply (Automated Deployment)
         run: |
           terraform -chdir=terraform init
-          terraform -chdir=terraform apply -auto-approve -var="container_image_tag=${{ github.sha }}
+          terraform -chdir=terraform apply -auto-approve -var="container_image_tag=${{ github.sha }}"
