@@ -28,7 +28,7 @@ resource "aws_iam_role_policy_attachment" "ecs_execution_attach" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# 4. ECS TASK Role (Gives the actual Python script permissions to interact ONLY with SQS)
+# 4. ECS TASK Role (Gives the actual Python script permissions to interact with AWS resources)
 resource "aws_iam_role" "ecs_task_role" {
   name = "ps-ingress-ecs-task-role"
 
@@ -66,6 +66,29 @@ resource "aws_iam_role_policy_attachment" "ecs_task_sqs_attach" {
   policy_arn = aws_iam_policy.ecs_sqs_access.arn
 }
 
+# Granular IAM policy mapping for S3 Data Lake access
+resource "aws_iam_policy" "ecs_s3_access" {
+  name        = "ps-ingress-ecs-s3-policy"
+  description = "Allows worker container to push validated payloads into the S3 data lake bucket"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "s3:PutObject",
+        "s3:PutObjectAcl"
+      ]
+      Resource = "${aws_s3_bucket.data_lake.arn}/*"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_task_s3_attach" {
+  role       = aws_iam_role.ecs_task_role.name
+  policy_arn = aws_iam_policy.ecs_s3_access.arn
+}
+
 # 5. ECS Fargate Task Definition Layout
 resource "aws_ecs_task_definition" "app" {
   family                   = "ps-ingress-worker-task"
@@ -83,7 +106,8 @@ resource "aws_ecs_task_definition" "app" {
     
     environment = [
       { name = "SQS_QUEUE_URL", value = aws_sqs_queue.ps_ingress_queue.url },
-      { name = "AWS_REGION", value = var.aws_region }
+      { name = "AWS_REGION", value = var.aws_region },
+      { name = "DATA_LAKE_BUCKET", value = aws_s3_bucket.data_lake.id } # Feeds the data lake bucket name into Python
     ]
 
     logConfiguration = {

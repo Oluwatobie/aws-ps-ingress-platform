@@ -1,51 +1,66 @@
 import os
-import time
 import json
+import time
+from datetime import datetime
+import uuid
 import boto3
 
-# Fetch environment variables injected by ECS Task Definition
-QUEUE_URL = os.environ.get("SQS_QUEUE_URL")
-AWS_REGION = os.environ.get("AWS_REGION", "eu-west-2")
+# Initialize AWS clients
+sqs = boto3.client('sqs', region_name='eu-west-2')
+s3 = boto3.client('s3', region_name='eu-west-2')
 
-sqs = boto3.client("sqs", region_name=AWS_REGION)
+QUEUE_URL = os.getenv('SQS_QUEUE_URL', 'https://sqs.eu-west-2.amazonaws.com/753229898853/ps-ingress-data-queue')
+# We will pass this new env variable via Terraform or default it
+BUCKET_NAME = os.getenv('DATA_LAKE_BUCKET', 'ps-ingress-data-lake-global') 
 
-print(f"[*] Starting Public Sector Ingress Worker Engine...")
+print("[*] Starting Public Sector Ingress Worker Engine...")
 print(f"[*] Target Queue: {QUEUE_URL}")
 
 while True:
     try:
-        # Long poll SQS queue to minimize API request volume and costs
+        # Long-poll SQS for messages
         response = sqs.receive_message(
             QueueUrl=QUEUE_URL,
             MaxNumberOfMessages=1,
-            WaitTimeSeconds=20,  # Enforces long-polling
-            VisibilityTimeout=60 # Gives worker 60s to finish before message returns to queue
+            WaitTimeSeconds=20
         )
         
-        messages = response.get("Messages", [])
-        if not messages:
+        if 'Messages' not in response:
             print("[*] Queue empty. Sleeping/waiting for incoming ingestion payloads...")
             continue
             
-        for msg in messages:
-            receipt_handle = msg["ReceiptHandle"]
-            body = msg["Body"]
+        for message in response['Messages']:
+            message_id = message['MessageId']
+            body_raw = message['Body']
             
-            print(f"[+][PROCESSING] Received Payload ID: {msg['MessageId']}")
+            print(f"[+][PROCESSING] Received Payload ID: {message_id}")
             
-            # --- SIMULATE SECURE GOV DATA PROCESSING ---
-            # In a real environment, you would parse, sanitize, and validate fields here
-            time.sleep(2) 
-            print(f"[+][SUCCESS] Payload validation passed securely.")
-            # -------------------------------------------
+            # 1. Parse and validate the incoming record
+            payload = json.loads(body_raw)
+            record_id = payload.get("record_id", f"UNKNOWN-{uuid.uuid4().hex[:6]}")
             
-            # Delete message from queue to confirm successful processing
+            # 2. Generate Hive-style date partitions dynamically
+            now = datetime.utcnow()
+            partition_path = f"records/year={now.year}/month={now.strftime('%m')}/day={now.strftime('%d')}"
+            file_name = f"{record_id}-{message_id}.json"
+            s3_key = f"{partition_path}/{file_name}"
+            
+            # 3. Stream the JSON record directly to the S3 Data Lake
+            s3.put_object(
+                Bucket=BUCKET_NAME,
+                Key=s3_key,
+                Body=json.dumps(payload),
+                ContentType='application/json'
+            )
+            print(f"[+][STORAGE] Successfully committed record to Data Lake: {s3_key}")
+            
+            # 4. Remove message from SQS buffer to prevent double processing
             sqs.delete_message(
                 QueueUrl=QUEUE_URL,
-                ReceiptHandle=receipt_handle
+                ReceiptHandle=message['ReceiptHandle']
             )
-            print(f"[+][CLEANUP] Message safely deleted from active queue buffer.")
+            print("[+][CLEANUP] Message safely deleted from active queue buffer.\n")
             
     except Exception as e:
-        print(f"[-][ERROR] Critical exception caught in worker execution loop: {str(e)}")
-        time.sleep(5) # Cooldown before trying again to prevent aggressive crash looping
+        print(f"[-] [ERROR] Critical processing anomaly: {str(e)}")
+        time.sleep(5)
