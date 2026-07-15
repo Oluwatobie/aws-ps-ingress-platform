@@ -33,7 +33,6 @@ resource "aws_glue_catalog_table" "ingress_table" {
       serialization_library = "org.openx.data.jsonserde.JsonSerDe"
     }
 
-    # Define the core columns matching your incoming JSON keys
     columns {
       name = "record_id"
       type = "string"
@@ -48,7 +47,6 @@ resource "aws_glue_catalog_table" "ingress_table" {
     }
   }
 
-  # Define virtual partitions for Hive-style tracking
   partition_keys {
     name = "year"
     type = "string"
@@ -60,5 +58,19 @@ resource "aws_glue_catalog_table" "ingress_table" {
   partition_keys {
     name = "day"
     type = "string"
+  }
+}
+
+# 3. Provision a dedicated Athena Workgroup for QuickSight Queries
+resource "aws_athena_workgroup" "quicksight_workgroup" {
+  name = "ps-quicksight-analytics-workgroup"
+
+  configuration {
+    enforce_workgroup_configuration    = true
+    publish_cloudwatch_metrics_enabled = true
+
+    result_configuration {
+      output_location = "s3://${aws_s3_bucket.data_lake.id}/athena-query-results/"
+    }
   }
 }
