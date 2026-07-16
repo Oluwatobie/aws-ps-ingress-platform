@@ -85,6 +85,7 @@ Visualization: QuickSight queries Amazon Athena, which reads the partitioned S3 
 
 ## 💻 Repository Structure
 
+```text
 aws-ps-ingress-platform/
 ├── .github/workflows/
 │   └── deploy.yml          # GitHub Actions CI/CD Pipeline
@@ -107,6 +108,7 @@ aws-ps-ingress-platform/
 ├── dashboard.py            # Local Streamlit data visualization application
 ├── msg.json                # Local sample event payload
 └── msg2.json               # Local sample event payload
+```
 
 ## ⚙️ Setup & Deployment
 This project is deployed entirely via GitHub Actions. To replicate this environment:
