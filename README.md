@@ -46,24 +46,24 @@ graph TD
 ## 🛠️ Technology Stack & Reasoning
 This project utilizes modern cloud design patterns to ensure security, scalability, and cost-efficiency.
 
-1. Infrastructure & CI/CD (GitOps)
+### 1. Infrastructure & CI/CD (GitOps)
 Terraform: Used to define every piece of AWS infrastructure as code (IaC). This ensures environments are reproducible, auditable, and self-documenting.
 
 GitHub Actions: Automates the deployment pipeline. Every code push automatically builds a new Docker image tagged with the specific Git Commit SHA, pushes it to AWS, and runs terraform apply. This guarantees what is running in the cloud perfectly matches the source code.
 
 Amazon ECR (Elastic Container Registry): securely stores our immutable Docker images.
 
-2. The Ingestion Buffer
+### 2. The Ingestion Buffer
 Amazon SQS (Simple Queue Service): Acts as a shock absorber. Instead of writing data directly to a database (which can crash during traffic spikes), data hits SQS first. SQS holds the messages safely until the worker is ready to process them.
 
-3. Secure Serverless Compute
+### 3. Secure Serverless Compute
 Amazon ECS (Fargate): Runs our Python worker script without the need to manage underlying EC2 servers.
 
 Zero-Trust Network Isolation: The Fargate task runs in a Private Subnet. It has no public IP address and cannot be accessed from the internet. It only communicates outward via a NAT Gateway.
 
 Least Privilege IAM: The worker is assigned a specific IAM Task Role that only allows it to read from the exact SQS queue and write to the exact S3 bucket.
 
-4. The Data Lake & Analytics Engine
+### 4. The Data Lake & Analytics Engine
 Amazon S3 (Simple Storage Service): Stores the raw JSON payloads.
 
 Hive-Style Partitioning: The Python worker logically organizes files into folders by date (e.g., /year=2026/month=07/day=15/). This drastically reduces cloud storage costs and speeds up query times.
