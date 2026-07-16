@@ -40,9 +40,10 @@ graph TD
         Glue -.->|Provides Schema| Athena
         Athena -->|Serves Fast SQL Queries| QS
     end
+```
 
 
-🛠️ Technology Stack & Reasoning
+## 🛠️ Technology Stack & Reasoning
 This project utilizes modern cloud design patterns to ensure security, scalability, and cost-efficiency.
 
 1. Infrastructure & CI/CD (GitOps)
@@ -71,7 +72,7 @@ AWS Glue & Amazon Athena: Athena overlays a SQL querying engine directly on top 
 
 Amazon QuickSight: Connects to a dedicated Athena Workgroup to visualize the data lake through interactive, executive-level BI dashboards.
 
-🚀 How Data Flows Through the System
+## 🚀 How Data Flows Through the System
 Generation: A bulk ingest script generates thousands of mock telemetry records (representing different government departments and security clearances) and pushes them to SQS in batches.
 
 Polling: The ECS Fargate container constantly polls SQS. When messages arrive, it pulls them down securely.
@@ -82,7 +83,7 @@ Storage: The worker writes the file to the S3 Data Lake, placing it in the corre
 
 Visualization: QuickSight queries Amazon Athena, which reads the partitioned S3 files on the fly to render real-time charts and metrics.
 
-💻 Repository Structure
+## 💻 Repository Structure
 
 aws-ps-ingress-platform/
 ├── .github/workflows/
@@ -107,7 +108,7 @@ aws-ps-ingress-platform/
 ├── msg.json                # Local sample event payload
 └── msg2.json               # Local sample event payload
 
-⚙️ Setup & Deployment
+## ⚙️ Setup & Deployment
 This project is deployed entirely via GitHub Actions. To replicate this environment:
 
 Configure AWS OIDC or store AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in GitHub Repository Secrets.
